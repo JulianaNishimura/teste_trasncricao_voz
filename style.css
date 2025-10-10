@@ -1,0 +1,51 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f0f2f5;
+    color: #333;
+    text-align: center;
+}
+
+.container {
+    padding: 20px;
+    max-width: 400px;
+    width: 100%;
+}
+
+h1 {
+    font-size: 1.5rem;
+    color: #007bff;
+}
+
+#transcription {
+    min-height: 50px;
+    margin: 20px 0;
+    font-size: 1.1rem;
+    font-style: italic;
+    color: #666;
+}
+
+.mic-button {
+    background-color: #007bff;
+    border: none;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease-in-out;
+}
+
+.mic-button:active {
+    transform: scale(0.95);
+}
+
+.mic-icon {
+    width: 40px;
+    height: 40px;
+    color: white;
+}
