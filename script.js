@@ -1,4 +1,4 @@
-const BACKEND_URL = "ws://localhost:8000/ws"; // Altere para a URL do seu deploy no Render: wss://seu-backend.render.com/ws
+const BACKEND_URL = window.API_URL;
 
 const micButton = document.getElementById("mic-button");
 const transcriptionDiv = document.getElementById("transcription");

@@ -1,0 +1,1 @@
+window.API_URL = "wss://lyria-servicodetranscricao.onrender.com/ws";
