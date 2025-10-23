@@ -5,89 +5,59 @@ const transcriptionDiv = document.getElementById("transcription");
 let isRecording = false;
 let ws = null;
 let mediaRecorder = null;
-let audioQueue = []; 
+let audioChunks = [];
+
+micButton.addEventListener("click", () => {
+    isRecording ? stopRecording() : startRecording();
+});
 
 async function startRecording() {
-    isRecording = true;
-    micButton.style.backgroundColor = "red";
-    transcriptionDiv.textContent = "Conectando...";
-    
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        isRecording = true;
+        micButton.style.backgroundColor = "red";
+        transcriptionDiv.textContent = "🎤 Gravando...";
         
-        audioQueue = [];
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
         ws = new WebSocket(BACKEND_URL);
         
-        ws.onopen = () => {
-            console.log("✅ Conectado ao servidor WebSocket.");
-            transcriptionDiv.textContent = "Gravando...";
-            
-            while (audioQueue.length > 0 && ws.readyState === WebSocket.OPEN) {
-                const audioData = audioQueue.shift();
-                ws.send(audioData);
-            }
-        };
+        ws.onopen = () => console.log("✅ Conectado");
         
         ws.onmessage = async (event) => {
             if (event.data instanceof Blob) {
-                const audioBlob = event.data;
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const audio = new Audio(audioUrl);
-                audio.play();
-                transcriptionDiv.textContent = "🔊 Ouvindo resposta...";
-                
+                transcriptionDiv.textContent = "🔊 Reproduzindo resposta...";
+                const audio = new Audio(URL.createObjectURL(event.data));
+                await audio.play();
                 audio.onended = () => {
-                    if (isRecording) {
-                        transcriptionDiv.textContent = "Gravando...";
-                    }
+                    if (isRecording) transcriptionDiv.textContent = "🎤 Gravando...";
                 };
             }
         };
         
+        ws.onerror = () => {
+            transcriptionDiv.textContent = "❌ Erro de conexão";
+            stopRecording();
+        };
+        
         ws.onclose = () => {
-            console.log("🔌 Desconectado do servidor WebSocket.");
             if (isRecording) {
-                isRecording = false;
-                micButton.style.backgroundColor = "#007bff";
-                transcriptionDiv.textContent = "Conexão encerrada. Toque para reconectar.";
+                transcriptionDiv.textContent = "🔌 Desconectado";
+                stopRecording();
             }
         };
         
-        ws.onerror = (error) => {
-            console.error("❌ Erro no WebSocket:", error);
-            transcriptionDiv.textContent = "Erro na conexão. Tente novamente.";
-            stopRecording();
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
         };
         
-        mediaRecorder = new MediaRecorder(stream, { 
-            mimeType: "audio/webm;codecs=opus" 
-        });
-        
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(event.data);
-                } else if (ws && ws.readyState === WebSocket.CONNECTING) {
-                    console.log("⏳ WebSocket conectando... adicionando áudio à fila");
-                    audioQueue.push(event.data);
-                } else {
-                    console.warn("⚠️ WebSocket não está conectado. Áudio descartado.");
-                }
-            }
-        };
-        
-        mediaRecorder.onerror = (error) => {
-            console.error("❌ Erro no MediaRecorder:", error);
-            transcriptionDiv.textContent = "Erro na gravação. Tente novamente.";
-            stopRecording();
-        };
-        
-        mediaRecorder.start(250); 
+        mediaRecorder.start();
         
     } catch (error) {
-        console.error("❌ Erro ao acessar o microfone:", error);
-        transcriptionDiv.textContent = "Permissão do microfone negada.";
+        console.error(error);
+        transcriptionDiv.textContent = "❌ Erro ao acessar microfone";
         isRecording = false;
         micButton.style.backgroundColor = "#007bff";
     }
@@ -98,30 +68,19 @@ function stopRecording() {
     
     isRecording = false;
     micButton.style.backgroundColor = "#007bff";
-    transcriptionDiv.textContent = "Processando...";
+    transcriptionDiv.textContent = "⏳ Processando...";
     
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
         mediaRecorder.stop();
-        
         mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        
+        mediaRecorder.onstop = () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                ws.send(audioBlob);
+            }
+        };
     }
-    
-    setTimeout(() => {
-        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-            ws.close();
-        }
-        transcriptionDiv.textContent = "Toque no microfone para falar...";
-    }, 500);
 }
 
-micButton.addEventListener("click", () => {
-    if (isRecording) {
-        stopRecording();
-    } else {
-        startRecording();
-    }
-});
-
-window.addEventListener("beforeunload", () => {
-    stopRecording();
-});
+window.addEventListener("beforeunload", stopRecording);
