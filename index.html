@@ -1,24 +1,18 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assistente de Voz</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <title>Seu Assistente de Voz</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2rem; }
+    #mic { width: 80px; height: 80px; border-radius: 50%; font-size: 2rem; }
+    #status { margin-top: 1rem; font-size: 1.2rem; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Seu Assistente de Voz</h1>
-        <div id="transcription">Toque no microfone para falar...</div>
-        <button id="mic-button" class="mic-button">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="mic-icon">
-                <path d="M12 2C10.895 2 10 2.895 10 4V10C10 11.105 10.895 12 12 12C13.105 12 14 11.105 14 10V4C14 2.895 13.105 2 12 2Z"/>
-                <path d="M17 10H15C15 12.761 12.761 15 10 15V17C15 17 19 13 19 8H17C17 10.761 14.761 13 12 13V15C14.761 15 17 12.761 17 10Z"/>
-                <path d="M12 15C13.657 15 15 13.657 15 12H17C17 14.761 14.761 17 12 17V19C17 19 21 15 21 10H19C19 12.761 16.761 15 14 19Z"/>
-            </svg>
-        </button>
-    </div>
-    <script src="config.js"></script>
-    <script src="script.js"></script>
+  <h1>Seu Assistente de Voz</h1>
+  <button id="mic">🎤</button>
+  <div id="status">Toque no microfone para falar...</div>
+  <script src="script.js"></script>
 </body>
 </html>
