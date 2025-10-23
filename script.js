@@ -1,4 +1,4 @@
-const BACKEND_URL = 'wss://lyria-servicodetranscricao.onrender.com';
+const BACKEND_URL = 'wss://lyria-servicodetranscricao.onrender.com/ws';
 const micButton = document.getElementById("mic-button");
 const transcriptionDiv = document.getElementById("transcription");
 
