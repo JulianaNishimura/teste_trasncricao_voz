@@ -1,33 +1,28 @@
-const BACKEND_URL = window.API_URL;
+const BACKEND_URL = 'https://lyria-servicodetranscricao.onrender.com';
 const micButton = document.getElementById("mic-button");
 const transcriptionDiv = document.getElementById("transcription");
 
 let isRecording = false;
 let ws = null;
 let mediaRecorder = null;
-let audioQueue = []; // ✅ Fila para armazenar áudio enquanto WS conecta
+let audioQueue = []; 
 
-// ✅ Função para iniciar a gravação e a conexão WebSocket
 async function startRecording() {
     isRecording = true;
     micButton.style.backgroundColor = "red";
     transcriptionDiv.textContent = "Conectando...";
     
     try {
-        // Obter permissão para usar o microfone
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // ✅ Limpar fila de áudio
         audioQueue = [];
         
-        // Conectar ao WebSocket do seu backend
         ws = new WebSocket(BACKEND_URL);
         
         ws.onopen = () => {
             console.log("✅ Conectado ao servidor WebSocket.");
             transcriptionDiv.textContent = "Gravando...";
             
-            // ✅ Enviar áudios que estavam na fila
             while (audioQueue.length > 0 && ws.readyState === WebSocket.OPEN) {
                 const audioData = audioQueue.shift();
                 ws.send(audioData);
@@ -35,7 +30,6 @@ async function startRecording() {
         };
         
         ws.onmessage = async (event) => {
-            // Receber a resposta em áudio do backend e reproduzir
             if (event.data instanceof Blob) {
                 const audioBlob = event.data;
                 const audioUrl = URL.createObjectURL(audioBlob);
@@ -43,7 +37,6 @@ async function startRecording() {
                 audio.play();
                 transcriptionDiv.textContent = "🔊 Ouvindo resposta...";
                 
-                // ✅ Quando terminar de tocar, voltar ao estado de gravação
                 audio.onended = () => {
                     if (isRecording) {
                         transcriptionDiv.textContent = "Gravando...";
@@ -67,18 +60,15 @@ async function startRecording() {
             stopRecording();
         };
         
-        // Configurar o MediaRecorder para capturar áudio
         mediaRecorder = new MediaRecorder(stream, { 
-            mimeType: "audio/webm;codecs=opus" // ✅ Codec mais compatível
+            mimeType: "audio/webm;codecs=opus" 
         });
         
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
-                // ✅ Verificar se WebSocket está aberto antes de enviar
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(event.data);
                 } else if (ws && ws.readyState === WebSocket.CONNECTING) {
-                    // ✅ Se ainda está conectando, adiciona à fila
                     console.log("⏳ WebSocket conectando... adicionando áudio à fila");
                     audioQueue.push(event.data);
                 } else {
@@ -93,8 +83,7 @@ async function startRecording() {
             stopRecording();
         };
         
-        // ✅ Iniciar a gravação
-        mediaRecorder.start(250); // Enviar chunks a cada 250ms
+        mediaRecorder.start(250); 
         
     } catch (error) {
         console.error("❌ Erro ao acessar o microfone:", error);
@@ -104,7 +93,6 @@ async function startRecording() {
     }
 }
 
-// ✅ Função para parar a gravação
 function stopRecording() {
     if (!isRecording) return;
     
@@ -112,15 +100,12 @@ function stopRecording() {
     micButton.style.backgroundColor = "#007bff";
     transcriptionDiv.textContent = "Processando...";
     
-    // ✅ Parar MediaRecorder
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
         mediaRecorder.stop();
         
-        // ✅ Parar todas as tracks do stream
         mediaRecorder.stream.getTracks().forEach(track => track.stop());
     }
     
-    // ✅ Fechar WebSocket após um delay para garantir envio dos últimos dados
     setTimeout(() => {
         if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
             ws.close();
@@ -129,7 +114,6 @@ function stopRecording() {
     }, 500);
 }
 
-// ✅ Adicionar evento de clique ao botão
 micButton.addEventListener("click", () => {
     if (isRecording) {
         stopRecording();
@@ -138,7 +122,6 @@ micButton.addEventListener("click", () => {
     }
 });
 
-// ✅ Limpar recursos ao sair da página
 window.addEventListener("beforeunload", () => {
     stopRecording();
 });
