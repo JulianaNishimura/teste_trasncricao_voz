@@ -1,69 +1,56 @@
-const mic = document.getElementById("mic");
-const status = document.getElementById("status");
-let ws, mediaRecorder, stream, recordedChunks = [];
+let recordedChunks = [];
+let mediaRecorder;
+let stream;
+let ws;
 
-mic.onclick = async () => {
-  // Se já estiver gravando, pare e envie o áudio
+document.getElementById("mic").onclick = async () => {
+  const mic = document.getElementById("mic");
+  const status = document.getElementById("status");
+
   if (mediaRecorder && mediaRecorder.state === "recording") {
-    stop();
+    mediaRecorder.stop();
+    mic.textContent = "🎤";
+    status.textContent = "Processando...";
     return;
   }
 
   try {
-    status.textContent = "Gravando...";
-    mic.style.backgroundColor = "red";
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recordedChunks = [];
 
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    ws = new WebSocket("wss://lyria-servicodetranscricao.onrender.com/ws");
-
-    ws.onmessage = (e) => {
-      if (e.data instanceof Blob) {
-        const audio = new Audio(URL.createObjectURL(e.data));
-        audio.play();
-      }
-    };
-
-    ws.onclose = () => {
-      mic.style.backgroundColor = "";
-      status.textContent = "Conexão encerrada";
-    };
-
     mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        recordedChunks.push(e.data);
-      }
+    mediaRecorder.ondataavailable = e => {
+      if (e.data.size > 0) recordedChunks.push(e.data);
     };
 
-    mediaRecorder.onstop = () => {
-      if (recordedChunks.length > 0 && ws.readyState === WebSocket.OPEN) {
-        const blob = new Blob(recordedChunks, { type: "audio/webm" });
-        blob.arrayBuffer().then(buffer => {
-          ws.send(buffer);
-          ws.close();
-        });
-      }
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(recordedChunks, { type: "audio/webm" });
+      const buffer = await blob.arrayBuffer();
+
+      ws = new WebSocket("wss://lyria-servicodetranscricao.onrender.com/ws");
+      ws.onopen = () => ws.send(buffer);
+
+      ws.onmessage = (e) => {
+        if (e.data instanceof Blob) {
+          const audio = new Audio(URL.createObjectURL(e.data));
+          audio.play().finally(() => {
+            mic.textContent = "🎤";
+            status.textContent = "Toque para falar...";
+          });
+        }
+      };
+
+      ws.onclose = () => {
+        stream.getTracks().forEach(t => t.stop());
+      };
     };
 
     mediaRecorder.start();
+    mic.textContent = "⏹️";
+    status.textContent = "Gravando...";
 
   } catch (err) {
+    console.error("Erro no microfone:", err);
     status.textContent = "Erro ao acessar microfone";
-    console.error(err);
-    mic.style.backgroundColor = "";
   }
 };
-
-function stop() {
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    mediaRecorder.stop();
-  }
-  stream?.getTracks().forEach(t => t.stop());
-  status.textContent = "Processando...";
-}
-
-window.addEventListener("beforeunload", () => {
-  mediaRecorder?.stop();
-  ws?.close();
-});
