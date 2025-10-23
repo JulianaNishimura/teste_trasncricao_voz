@@ -1,9 +1,10 @@
 const mic = document.getElementById("mic");
 const status = document.getElementById("status");
-let ws, mediaRecorder, stream;
+let ws, mediaRecorder, stream, recordedChunks = [];
 
 mic.onclick = async () => {
-  if (ws?.readyState === WebSocket.OPEN) {
+  // Se já estiver gravando, pare e envie o áudio
+  if (mediaRecorder && mediaRecorder.state === "recording") {
     stop();
     return;
   }
@@ -11,6 +12,7 @@ mic.onclick = async () => {
   try {
     status.textContent = "Gravando...";
     mic.style.backgroundColor = "red";
+    recordedChunks = [];
 
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     ws = new WebSocket("wss://lyria-servicodetranscricao.onrender.com/ws");
@@ -27,26 +29,41 @@ mic.onclick = async () => {
       status.textContent = "Conexão encerrada";
     };
 
-    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
     mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-        ws.send(e.data);
+      if (e.data.size > 0) {
+        recordedChunks.push(e.data);
       }
     };
-    mediaRecorder.start(1000); // envia a cada 1 segundo
+
+    mediaRecorder.onstop = () => {
+      if (recordedChunks.length > 0 && ws.readyState === WebSocket.OPEN) {
+        const blob = new Blob(recordedChunks, { type: "audio/webm" });
+        blob.arrayBuffer().then(buffer => {
+          ws.send(buffer);
+          ws.close();
+        });
+      }
+    };
+
+    mediaRecorder.start();
 
   } catch (err) {
     status.textContent = "Erro ao acessar microfone";
     console.error(err);
+    mic.style.backgroundColor = "";
   }
 };
 
 function stop() {
-  mediaRecorder?.stop();
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
   stream?.getTracks().forEach(t => t.stop());
-  ws?.close();
-  mic.style.backgroundColor = "";
   status.textContent = "Processando...";
 }
 
-window.addEventListener("beforeunload", () => ws?.close());
+window.addEventListener("beforeunload", () => {
+  mediaRecorder?.stop();
+  ws?.close();
+});
